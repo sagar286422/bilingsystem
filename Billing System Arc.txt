@@ -1,0 +1,419 @@
+﻿📘 BILLING SYSTEM – MASTER ARCHITECTURE DOCUMENT
+(Stripe × Pabbly × Lago Inspired | ManyTalks + Fliqr Aligned)
+________________
+
+
+1. 🎯 PRODUCT VISION
+Build a developer-first billing infrastructure that is:
+* As simple as Stripe (API-first)
+* As flexible as Pabbly (multi-gateway, no-code)
+* As scalable as Lago (event-driven + ledger system)
+________________
+
+
+2. 🧱 CORE SYSTEM ARCHITECTURE
+Organizations (Top Level)
+   ↓
+Companies (Legal / Billing Entities) | a flag
+   ↓
+Teams (Operational Units - Geo/Product Based)
+   ↓
+Billing System (Customers, Subscriptions, Payments)
+________________
+
+
+3. 🏢 ORGANIZATION + COMPANY MODEL
+🔹 Organization
+* Represents a business account (e.g., your SaaS company)
+* Owns everything (users, companies, billing data)
+________________
+
+
+🔹 Companies (VERY IMPORTANT LAYER)
+allows multiple legal billing entities
+Example:
+Company
+	Country
+	Use Case
+	ManyTalks Inc
+	USA
+	USD billing
+	ManyTalks India Pvt Ltd
+	India
+	INR billing
+	________________
+
+
+Each Company Contains:
+* Company Name
+* Logo
+* Address
+* Tax IDs (GST, EIN, VAT)
+* Currency
+* Default Payment Gateways
+* Invoice Branding
+________________
+
+
+Use Cases:
+* Correct tax handling
+* Local payment methods
+* Geo-based billing compliance
+________________
+
+
+4. 👥 RBAC + TEAM ARCHITECTURE (CRITICAL)
+Built using: Better Auth + RBAC
+________________
+
+
+🔹 Roles
+Organization Level:
+* Owner
+* Admin
+________________
+
+
+Company Level:
+* Billing Admin
+* Finance Manager
+________________
+
+
+Team Level:
+* Team Admin
+* Operator
+________________
+
+
+🔹 Teams (Operational Units)
+Teams are mapped to companies or regions or products
+Example:
+Team
+	Company
+	Purpose
+	US Billing Team
+	ManyTalks Inc
+	Stripe USD billing
+	India Billing Team
+	ManyTalks India
+	Razorpay INR billing
+	Fliqr Growth Team
+	Fliqr Inc
+	Product-specific billing
+	________________
+
+
+Permissions Example:
+* US Team → only access USD customers
+* India Team → only INR billing + GST invoices
+________________
+
+
+5. 🧾 CORE BILLING ENTITIES
+________________
+
+
+🔹 Customers
+* Name, email, phone
+* Company association
+* Metadata
+________________
+
+
+🔹 Products
+* Logical product (ManyTalks, Fliqr)
+________________
+
+
+🔹 Prices (Stripe-style)
+* price_id (primary abstraction)
+* amount
+* currency
+* billing cycle
+* linked to product
+________________
+
+
+🔹 Subscriptions
+* customer_id
+* price_id
+* status
+* trial / active / cancelled
+________________
+
+
+🔹 Invoices
+* company_id (IMPORTANT)
+* customer_id
+* line items
+* taxes
+* total amount
+________________
+
+
+🔹 Transactions
+* payment attempts
+* gateway response
+* status
+________________
+
+
+🔹 Promo Codes
+* discount type
+* usage limits / amount limits / product / price id limits
+* Expiry
+* Customer mapped codes
+________________
+
+
+6. 💳 PAYMENT SYSTEM (MULTI-GATEWAY CORE)
+________________
+
+
+🔹 Payment Abstraction Layer
+Create a universal interface:
+interface PaymentProvider {
+ createCustomer()
+ createSubscription()
+ createCheckout()
+ verifyWebhook()
+ refundPayment()
+}
+________________
+
+
+🔹 Supported Gateways (Expandable)
+* Stripe
+* Razorpay
+* PayPal
+* Cashfree
+________________
+
+
+🔹 Gateway Selection Logic
+Dynamic routing:
+if (company.country === "IN") → Razorpay
+if (currency === "USD") → Stripe
+This will be super dynamic will be decided by the organisation based on country, currency, product, price id
+________________
+
+
+🔹 BYOK (Bring Your Own Keys)
+Each company can:
+* Add their own API keys
+* Or use platform-managed keys (Special Onboarding)
+________________
+
+
+7. 🧾 INVOICE SYSTEM
+________________
+
+
+Invoice is always tied to:
+* Company (legal entity)
+* Customer
+* Subscription / usage
+________________
+
+
+Includes:
+* Company branding
+* Tax calculation
+* Currency formatting
+* PDF generation
+________________
+
+
+Tax Handling:
+* GST (India)
+* VAT (EU)
+* Sales Tax (US - later phase)
+________________
+
+
+8. ⚙️ EVENT-DRIVEN BILLING
+________________
+
+
+🔹 Event Ingestion API
+POST /v1/events
+Example:
+{
+ "event_name": "message_sent",
+ "customer_id": "cus_123",
+ "value": 1
+}
+________________
+
+
+🔹 Usage Metering
+* Track usage per customer
+* Aggregate per billing cycle
+* Generate invoice dynamically
+________________
+
+
+9. 📊 LEDGER SYSTEM (VERY IMPORTANT)
+________________
+
+
+Why:
+* Prevent data inconsistency
+* Full audit trail
+* Scalable
+________________
+
+
+Ledger Table:
+{
+ "id": "ledger_123",
+ "type": "credit | debit",
+ "amount": 999,
+ "reference": "invoice_123",
+ "company_id": "comp_123"
+}
+________________
+
+
+Benefits:
+* No data mutation
+* Accurate accounting
+* Supports refunds & adjustments
+________________
+
+
+10. 🛒 CHECKOUT SYSTEM (PABBLY STYLE)
+________________
+
+
+Features:
+* Hosted checkout pages
+* Embed checkout (React)
+* Custom branding (shadcn based)
+________________
+
+
+Capabilities:
+* Coupons
+* Trials
+* Upsells
+* One-time + recurring payments
+________________
+
+
+Dev Experience:
+createCheckoutSession({
+ price_id: "mt_pro_999",
+ success_url: "...",
+ cancel_url: "..."
+})
+________________
+
+
+11. 🔌 API DESIGN (STRIPE-LIKE)
+________________
+
+
+Structure:
+/v1/customers
+/v1/subscriptions
+/v1/invoices
+/v1/checkout
+/v1/events
+________________
+
+
+Principles:
+* Predictable naming
+* Versioned APIs
+* Expandable metadata
+________________
+
+
+Example Response:
+{
+ "id": "sub_123",
+ "object": "subscription",
+ "status": "active"
+}
+________________
+
+
+12. 🔔 WEBHOOK SYSTEM (PRO LEVEL)
+________________
+
+
+Events:
+* payment.succeeded
+* payment.failed
+* subscription.created
+* invoice.generated
+________________
+
+
+Features:
+* Retry logic (exponential)
+* Signature verification
+* Webhook logs dashboard
+* Manual replay
+________________
+
+
+13. 🔐 AUTHENTICATION SYSTEM
+________________
+
+
+Using: Better Auth
+Features:
+* Multi-tenant login
+* RBAC support
+* API keys per org
+________________
+
+
+Access Control Layers:
+* Org-level
+* Company-level
+* Team-level
+* Resource-level (customers, invoices)
+________________
+
+
+14. 🧠 DATA ARCHITECTURE
+________________
+
+
+Recommended DB: PostgreSQL
+________________
+
+
+Why:
+* Strong relations (billing needs it)
+* JSON flexibility
+* High scalability
+* Works with analytics
+________________
+
+
+Tables Overview:
+Core:
+* organizations
+* users
+* companies
+* teams
+* customers
+* products
+* prices
+* subscriptions
+* invoices
+* transactions
+________________
+
+
+Advanced:
+* usage_events
+* ledger_entries
+* webhook_events
+* audit_logs
+* api_keys

@@ -1,0 +1,478 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DB_URL")
+}
+
+model User {
+  id            String   @id
+  name          String
+  email         String
+  emailVerified Boolean  @default(false) @map("email_verified")
+  image         String?  @map("image")
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  sessions              Session[]
+  accounts              Account[]
+  ownedOrganizations    Organization[]       @relation("OrganizationOwner")
+  organizationMembers   OrganizationMember[]
+  teamMemberships       TeamMember[]
+  companyMemberships    CompanyMember[]
+
+  @@unique([email])
+  @@map("user")
+}
+
+model Organization {
+  id        String   @id
+  name      String
+  ownerId   String   @map("owner_id")
+  /// platform = money via your Razorpay (.env); byok_razorpay = merchant keys in DB.
+  paymentMode     String   @default("platform") @map("payment_mode")
+  /// Basis points taken as platform fee on each payment for ledger (100 = 1%). Razorpay fees are separate.
+  platformFeeBps Int      @default(100) @map("platform_fee_bps")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  owner     User                   @relation("OrganizationOwner", fields: [ownerId], references: [id], onDelete: Restrict)
+  members   OrganizationMember[]
+  companies Company[]
+  teams     Team[]
+  apiKeys   ApiKey[]
+  products  Product[]
+  plans     Plan[]
+  customers Customer[]
+  subscriptions Subscription[]
+  invoices      Invoice[]
+  transactions  Transaction[]
+  promoCodes   PromoCode[]
+  paymentPages             PaymentPage[]
+  razorpayCredential       OrganizationRazorpayCredential?
+
+  @@index([ownerId])
+  @@map("organization")
+}
+
+/// Merchant Razorpay (BYOK). Secret encrypted at rest; key id stored in plaintext for Checkout.
+model OrganizationRazorpayCredential {
+  id             String   @id
+  organizationId String   @unique @map("organization_id")
+  keyId          String   @map("key_id")
+  /// AES-256-GCM: base64(iv|ciphertext|authTag)
+  secretEnc      String   @map("secret_enc")
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@map("organization_razorpay_credential")
+}
+
+/// Shareable checkout link for a catalog price (one-time or first period for recurring).
+model PaymentPage {
+  id             String   @id
+  organizationId String   @map("organization_id")
+  companyId      String   @map("company_id")
+  priceId        String   @map("price_id")
+  slug           String   @unique
+  title          String?
+  active         Boolean  @default(true)
+  /// Checkout branding: colors, copy, logo URL, layout hints (see API docs).
+  customization  Json     @default("{}")
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  company      Company      @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  price        Price        @relation(fields: [priceId], references: [id], onDelete: Restrict)
+  transactions Transaction[]
+
+  @@index([organizationId])
+  @@index([companyId])
+  @@index([priceId])
+  @@map("payment_page")
+}
+
+model Product {
+  id             String   @id
+  organizationId String   @map("organization_id")
+  name           String
+  description    String?
+  active         Boolean  @default(true)
+  metadata       Json     @default("{}")
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  prices       Price[]
+
+  @@index([organizationId])
+  @@map("product")
+}
+
+model Price {
+  id             String   @id
+  productId      String   @map("product_id")
+  currency       String
+  unitAmount     Int      @map("unit_amount")
+  type           String
+  billingScheme  String   @default("fixed") @map("billing_scheme")
+  interval       String?
+  intervalCount  Int?     @map("interval_count")
+  trialDays      Int?     @map("trial_days")
+  version        Int
+  active         Boolean  @default(true)
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+  plans   Plan[]
+  subscriptions Subscription[]
+  paymentPages PaymentPage[]
+
+  @@index([productId])
+  @@map("price")
+}
+
+model Plan {
+  id             String   @id
+  organizationId String   @map("organization_id")
+  priceId        String   @map("price_id")
+  name           String
+  description    String?
+  slug           String?  @map("slug")
+  active         Boolean  @default(true)
+  metadata       Json     @default("{}")
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  price        Price        @relation(fields: [priceId], references: [id], onDelete: Cascade)
+  subscriptions Subscription[]
+
+  @@unique([organizationId, slug])
+  @@index([organizationId])
+  @@index([priceId])
+  @@map("plan")
+}
+
+model ApiKey {
+  id             String    @id
+  organizationId String    @map("organization_id")
+  name           String
+  kind           String
+  environment    String
+  keyHash        String    @unique @map("key_hash")
+  prefix         String
+  createdAt      DateTime  @default(now()) @map("created_at")
+  revokedAt      DateTime? @map("revoked_at")
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId])
+  @@map("api_key")
+}
+
+model Company {
+  id             String   @id
+  organizationId String   @map("organization_id")
+  name           String
+  logo           String?
+  country        String
+  currency       String
+  taxId          String?  @map("tax_id")
+  address        String?
+  defaultGateway String?  @map("default_gateway")
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  customers    Customer[]
+  subscriptions Subscription[]
+  invoices     Invoice[]
+  transactions Transaction[]
+  teams        Team[]
+  members      CompanyMember[]
+  paymentPages PaymentPage[]
+
+  @@index([organizationId])
+  @@map("company")
+}
+
+model CompanyMember {
+  id        String   @id
+  companyId String   @map("company_id")
+  userId    String   @map("user_id")
+  role      String   @default("member")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([companyId, userId])
+  @@index([userId])
+  @@map("company_member")
+}
+
+model Team {
+  id             String   @id
+  organizationId String   @map("organization_id")
+  companyId      String?  @map("company_id")
+  name           String
+  type           String
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  company      Company?     @relation(fields: [companyId], references: [id], onDelete: SetNull)
+  members      TeamMember[]
+
+  @@index([organizationId])
+  @@index([companyId])
+  @@map("team")
+}
+
+model TeamMember {
+  id        String   @id
+  teamId    String   @map("team_id")
+  userId    String   @map("user_id")
+  /// Team-level role: viewer (default), admin, member — enforced in API later.
+  role      String   @default("viewer")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  team Team @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([teamId, userId])
+  @@index([userId])
+  @@map("team_member")
+}
+
+model OrganizationMember {
+  id             String   @id
+  organizationId String   @map("organization_id")
+  userId         String   @map("user_id")
+  role           String   @default("member")
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([organizationId, userId])
+  @@index([userId])
+  @@map("organization_member")
+}
+
+model Session {
+  id        String   @id
+  expiresAt DateTime @map("expires_at")
+  token     String   @unique
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+  ipAddress String?  @map("ip_address")
+  userAgent String?  @map("user_agent")
+  userId    String   @map("user_id")
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("session")
+}
+
+model Account {
+  id                    String    @id
+  accountId             String    @map("account_id")
+  providerId            String    @map("provider_id")
+  userId                String    @map("user_id")
+  user                  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  accessToken           String?   @map("access_token")
+  refreshToken          String?   @map("refresh_token")
+  idToken               String?   @map("id_token")
+  accessTokenExpiresAt  DateTime? @map("access_token_expires_at")
+  refreshTokenExpiresAt DateTime? @map("refresh_token_expires_at")
+  scope                 String?   @map("scope")
+  password              String?   @map("password")
+  createdAt             DateTime  @default(now()) @map("created_at")
+  updatedAt             DateTime  @updatedAt @map("updated_at")
+
+  @@index([userId])
+  @@map("account")
+}
+
+model Verification {
+  id         String   @id
+  identifier String
+  value      String
+  expiresAt  DateTime @map("expires_at")
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+
+  @@index([identifier])
+  @@map("verification")
+}
+
+model Customer {
+  id             String   @id
+  organizationId String   @map("organization_id")
+  companyId      String   @map("company_id")
+  email          String
+  name           String?
+  metadata       Json     @default("{}")
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  company      Company      @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  subscriptions Subscription[]
+  invoices      Invoice[]
+  transactions  Transaction[]
+
+  @@unique([companyId, email])
+  @@index([organizationId])
+  @@index([companyId])
+  @@map("customer")
+}
+
+model Subscription {
+  id                   String   @id
+  organizationId      String   @map("organization_id")
+  companyId           String   @map("company_id")
+  customerId          String   @map("customer_id")
+  priceId             String   @map("price_id")
+  planId               String?  @map("plan_id")
+  status              String
+  currentPeriodStart DateTime @map("current_period_start")
+  currentPeriodEnd   DateTime @map("current_period_end")
+  cancelAt            DateTime? @map("cancel_at")
+  latestInvoiceId    String?  @map("latest_invoice_id")
+  createdAt           DateTime @default(now()) @map("created_at")
+  updatedAt           DateTime @updatedAt @map("updated_at")
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  company      Company      @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  customer     Customer     @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  price        Price        @relation(fields: [priceId], references: [id], onDelete: Cascade)
+  plan         Plan?        @relation(fields: [planId], references: [id], onDelete: SetNull)
+
+  invoices     Invoice[]
+  transactions Transaction[]
+
+  @@index([organizationId])
+  @@index([companyId])
+  @@index([customerId])
+  @@map("subscription")
+}
+
+model Invoice {
+  id              String   @id
+  organizationId String   @map("organization_id")
+  companyId      String   @map("company_id")
+  customerId     String   @map("customer_id")
+  subscriptionId String?  @map("subscription_id")
+  subtotalAmount Int     @map("subtotal_amount")
+  discountAmount Int     @map("discount_amount")
+  promoCodeId    String? @map("promo_code_id")
+  totalAmount    Int      @map("total_amount")
+  currency       String
+  status         String
+  pdfUrl         String?  @map("pdf_url")
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+
+  organization  Organization  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  company       Company       @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  customer      Customer      @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  subscription  Subscription? @relation(fields: [subscriptionId], references: [id], onDelete: SetNull)
+  promoCode     PromoCode?   @relation(fields: [promoCodeId], references: [id], onDelete: SetNull)
+  transactions  Transaction[]
+
+  @@index([organizationId])
+  @@index([companyId])
+  @@index([customerId])
+  @@index([subscriptionId])
+  @@map("invoice")
+}
+
+model PromoCode {
+  id             String   @id
+  organizationId String   @map("organization_id")
+  code           String
+  name           String?
+  active         Boolean  @default(true)
+
+  kind           String   @map("kind")
+  percentOff     Int?     @map("percent_off")
+  amountOff      Int?     @map("amount_off")
+
+  maxUses        Int?     @map("max_uses")
+  timesRedeemed  Int      @default(0) @map("times_redeemed")
+  expiresAt      DateTime? @map("expires_at")
+
+  appliesToProductId String? @map("applies_to_product_id")
+  appliesToPriceId   String? @map("applies_to_price_id")
+
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  invoices     Invoice[]
+
+  @@unique([organizationId, code])
+  @@index([organizationId])
+  @@map("promo_code")
+}
+
+model Transaction {
+  id                   String   @id
+  organizationId      String   @map("organization_id")
+  companyId           String   @map("company_id")
+  customerId          String   @map("customer_id")
+  subscriptionId      String?  @map("subscription_id")
+  invoiceId           String?  @map("invoice_id")
+  amount              Int      @map("amount")
+  currency            String
+  status              String
+  gateway             String
+  gatewayReferenceId String   @map("gateway_reference_id")
+  paymentPageId      String?  @map("payment_page_id")
+  /// Ledger: platform fee in MINOR UNITS (from platformFeeBps at time of payment).
+  platformFeeMinor   Int?     @map("platform_fee_minor")
+  metadata           Json     @default("{}")
+  createdAt           DateTime @default(now()) @map("created_at")
+  updatedAt           DateTime @updatedAt @map("updated_at")
+
+  organization Organization  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  company      Company       @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  customer     Customer      @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  subscription Subscription? @relation(fields: [subscriptionId], references: [id], onDelete: SetNull)
+  invoice      Invoice?      @relation(fields: [invoiceId], references: [id], onDelete: SetNull)
+  paymentPage  PaymentPage?  @relation(fields: [paymentPageId], references: [id], onDelete: SetNull)
+
+  @@index([organizationId])
+  @@index([companyId])
+  @@index([customerId])
+  @@index([subscriptionId])
+  @@index([invoiceId])
+  @@map("transaction")
+}
+
+/// ISO 4217 reference rows for dropdowns, pricing, and future tax rules keyed by currency.
+model Currency {
+  code        String   @id @db.Char(3)
+  name        String
+  /// ISO 4217 minor unit exponent (0 = whole units only, 2 = cents, 3 = fils, etc.).
+  minorUnits  Int      @map("minor_units")
+  symbol      String?
+  active      Boolean  @default(true)
+  sortOrder   Int      @default(0) @map("sort_order")
+  /// Reserved for regional tax metadata (e.g. default VAT hints); extend without schema churn.
+  metadata    Json     @default("{}")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  @@map("currency")
+}

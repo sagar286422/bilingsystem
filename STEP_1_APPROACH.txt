@@ -1,0 +1,119 @@
+APPROACH FROM STEP 1
+
+This describes the order of work and technical approach for building the billing backend, starting from the first step. It follows Phase 0 in Phase wise System.txt before any billing features.
+
+
+SECTION 1 — LOCK THE STACK AND SKELETON
+
+Runtime: Node.js with TypeScript.
+
+HTTP: Fastify with one app entrypoint and structured plugins for database, auth, routes, and security.
+
+Database: PostgreSQL with a migration tool. Choose Drizzle or Prisma and keep every migration versioned in the repo.
+
+Auth: Better Auth using the official Fastify integration pattern. Use a catch-all route, configure CORS, and set trustedOrigins to match your dashboard origin.
+
+Deliverable: server boots, a health check route exists, the database connects, and configuration is read from the environment with no secrets committed in code.
+
+
+SECTION 2 — ENVIRONMENT AND SAFETY
+
+Define required variables early: database URL, Better Auth secret, application base URL, Google OAuth client credentials, and optionally CLIENT_ORIGIN for CORS.
+
+Use a local env file for development. Maintain an example env file without real values so others know what to set.
+
+Decide naming for test versus live environments early so it lines up with API key environments later.
+
+
+SECTION 3 — DATABASE ORDER OF CREATION
+
+Create tables in an order that respects foreign keys.
+
+First: Better Auth tables for users, sessions, accounts, and related records. Treat Better Auth as the source of truth for identity. Your app references user id from there.
+
+Second: organizations, linked to an owner user or to a membership model if you want multiple admins from the start.
+
+Third: companies, each with organization id plus legal and billing fields such as country, currency, tax identifiers, and default gateway.
+
+Fourth: teams, each with organization id, optional company id, and type such as geo, product, or custom.
+
+Fifth: RBAC tables — roles, permissions, role permissions, and user roles with scope type and scope id for org, company, or team.
+
+Sixth: API keys — store only a secure hash of the secret material, plus a readable prefix, environment label, organization id, and optional scoped permissions.
+
+Seventh: audit logs as an append-only table. Plan indexes on organization and time for future dashboards.
+
+Deliverable: every table has a clear purpose and indexes on columns you filter by on every request.
+
+
+SECTION 4 — BETTER AUTH FIRST, THEN BRIDGE TO YOUR TENANT MODEL
+
+Mount Better Auth under a fixed URL prefix such as api auth.
+
+Enable email and password plus Google sign-in as required.
+
+After authentication, application code ensures the user belongs to an organization. The minimal path is create organization on first login or a dedicated endpoint. Invites can follow.
+
+Session authentication is for people using the dashboard. API keys are for automation. Keys must resolve to an organization id and optional scope before authorization runs.
+
+Do not maintain a duplicate user table. Extend only with organization, company, team, and RBAC data.
+
+
+SECTION 5 — ACCESS CONTROL ENGINE
+
+Use one pipeline for all protected business routes.
+
+Step A: Identify the principal via session or valid API key.
+
+Step B: Resolve the active organization from membership or from the key.
+
+Step C: Load effective roles for that user at org, company, and team scopes. Document whether you union permissions or use a precedence rule.
+
+Step D: Check permission for the resource and action, for example customers read or invoices write.
+
+Step E: For company-scoped or team-scoped routes, verify the principal is allowed for that company id or team id.
+
+Start with a small permission set such as organization admin only, then expand as you add routes.
+
+
+SECTION 6 — MINIMAL HTTP SURFACE BEFORE BILLING
+
+Ship a small API you can test end to end.
+
+Create and list organizations for the current user.
+
+Create, read, update companies under an organization with strict organization isolation.
+
+Create teams, assign memberships, and support copying a user between teams by adding another membership row rather than deleting the old one.
+
+Invites by email can come later if you already rely on Better Auth user records.
+
+
+SECTION 7 — OBSERVABILITY AND AUDIT FROM DAY ONE
+
+Use structured logs with request id and organization id when known.
+
+Write audit log rows for sensitive actions such as organization created, role changed, or API key created.
+
+Design tables so you can add idempotency keys for webhooks and payments later without painful migrations.
+
+
+SECTION 8 — ONLY THEN PHASE 1 BILLING
+
+After Phase 0 is stable, add products and versioned prices. Never mutate a price row in place. Add a new row for each change.
+
+Add customers scoped to company id.
+
+Add checkout session flow, then transactions and invoices, then gateway webhooks.
+
+This order avoids rework because every billing row has the correct company and organization context.
+
+
+SECTION 9 — FASTIFY VERSUS NEST IN THE PHASE DOC
+
+Phase wise System.txt suggests NestJS for the backend. You chose Fastify. The phases and data model stay the same. Only the way you organize code changes, for example Fastify plugins instead of Nest modules.
+
+
+SUMMARY
+
+Step one is not building checkout. Step one is Postgres plus Better Auth on Fastify plus organization, company, and team models plus dynamic RBAC plus API keys plus audit logging plus one consistent authorization pipeline. Phase 1 billing builds on that foundation.
