@@ -1,10 +1,10 @@
 import { authClient } from "@/lib/auth-client";
 import { useWorkspaceStore } from "@/stores/workspace-store";
 
-import { siteOrigin } from "../env-public";
+import { getSiteOrigin } from "../env-public";
 
 function dashboardUrl(): string {
-  return `${siteOrigin}/dashboard`;
+  return `${getSiteOrigin()}/dashboard`;
 }
 
 export async function signInWithEmail(email: string, password: string) {

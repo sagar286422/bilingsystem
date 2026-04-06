@@ -22,7 +22,7 @@ import {
 } from "@/lib/api/api-keys";
 import { authClient } from "@/lib/auth-client";
 import { getOrganization } from "@/lib/api/organizations";
-import { siteOrigin } from "@/lib/env-public";
+import { getSiteOrigin } from "@/lib/env-public";
 import { canManageOrgMembersAndTeams } from "@/lib/workspace-permissions";
 import { useWorkspaceStore } from "@/stores/workspace-store";
 
@@ -148,8 +148,8 @@ export function DevelopersApiKeysPanel() {
 
   const keys = listRes?.data ?? [];
   const examplePath = organizationId
-    ? `${siteOrigin}/api/v1/organizations/${organizationId}/products`
-    : `${siteOrigin}/api/v1/organizations/{organization_id}/products`;
+    ? `${getSiteOrigin()}/api/v1/organizations/${organizationId}/products`
+    : `${getSiteOrigin()}/api/v1/organizations/{organization_id}/products`;
 
   function onCreateKey(e: FormEvent) {
     e.preventDefault();
@@ -181,7 +181,7 @@ export function DevelopersApiKeysPanel() {
           <p>
             Base URL (browser, via Next rewrite):{" "}
             <code className="rounded bg-muted px-1.5 py-0.5 text-xs text-foreground">
-              {siteOrigin}/api/v1/…
+              {`${getSiteOrigin()}/api/v1/…`}
             </code>
           </p>
           <p>
@@ -222,7 +222,7 @@ export function DevelopersApiKeysPanel() {
             <li>
               Call{" "}
               <code className="rounded bg-muted px-1 py-0.5 text-xs">
-                GET {siteOrigin}/api/v1/whoami
+                {`GET ${getSiteOrigin()}/api/v1/whoami`}
               </code>{" "}
               (or port <code className="text-xs">4000</code> on Fastify) and note{" "}
               <code className="text-xs">organization_id</code>.
@@ -230,7 +230,9 @@ export function DevelopersApiKeysPanel() {
             <li>
               Use the same Bearer header on{" "}
               <code className="rounded bg-muted px-1 py-0.5 text-xs">
-                GET {siteOrigin}/api/v1/organizations/&#123;organization_id&#125;/products
+                {"GET " +
+                  getSiteOrigin() +
+                  "/api/v1/organizations/{organization_id}/products"}
               </code>{" "}
               and other <code className="text-xs">/api/v1</code> routes — path org must match
               the key.
@@ -239,7 +241,7 @@ export function DevelopersApiKeysPanel() {
               <strong className="text-foreground">Checkout</strong> does not need an API key:
               hosted page{" "}
               <code className="rounded bg-muted px-1 py-0.5 text-xs">
-                {siteOrigin}/pay/&#123;slug&#125;
+                {`${getSiteOrigin()}/pay/`}&#123;slug&#125;
               </code>
               , or load{" "}
               <code className="rounded bg-muted px-1 py-0.5 text-xs">

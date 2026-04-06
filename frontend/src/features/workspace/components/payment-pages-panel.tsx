@@ -37,7 +37,7 @@ import {
   listProducts,
   productsQueryKey,
 } from "@/lib/api/products";
-import { siteOrigin } from "@/lib/env-public";
+import { getSiteOrigin } from "@/lib/env-public";
 import { canManageOrgMembersAndTeams } from "@/lib/workspace-permissions";
 import { useWorkspaceStore } from "@/stores/workspace-store";
 
@@ -604,7 +604,9 @@ export function PaymentPagesPanel() {
             <CardTitle className="text-lg">New payment page</CardTitle>
             <CardDescription>
               Public URL:{" "}
-              <code className="text-xs">{siteOrigin}/pay/your-slug</code>
+              <code className="text-xs">
+                {`${getSiteOrigin()}/pay/your-slug`}
+              </code>
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -764,7 +766,7 @@ export function PaymentPagesPanel() {
           ) : (
             <ul className="space-y-3">
               {pages.map((p) => {
-                const url = `${siteOrigin}${p.pay_path}`;
+                const url = `${getSiteOrigin()}${p.pay_path}`;
                 return (
                   <li
                     key={p.id}

@@ -30,7 +30,7 @@ vi.mock("@/lib/api/organizations", () => ({
 
 vi.mock("@/lib/env-public", () => ({
   isGoogleAuthEnabled: false,
-  siteOrigin: "http://localhost:3000",
+  getSiteOrigin: () => "http://localhost:3000",
 }));
 
 function getFormRoot(container: HTMLElement): HTMLElement {
