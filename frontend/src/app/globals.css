@@ -121,6 +121,9 @@
   --sidebar-ring: oklch(0.72 0.13 175 / 0.35);
 }
 
+
+/* Accent presets: see theme-palettes.css (imported from layout — not inlined here so Turbopack dev keeps them). */
+
 @layer base {
   * {
     @apply border-border outline-ring/50;
