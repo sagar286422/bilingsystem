@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Building2, Landmark, Shield, User } from "lucide-react";
+import { Building2, Landmark, Palette, Shield, User } from "lucide-react";
 
 import {
   Card,
@@ -9,6 +9,12 @@ import {
 } from "@/components/ui/card";
 
 const hubs = [
+  {
+    href: "/dashboard/settings/theme",
+    title: "Appearance",
+    description: "Light or dark mode and accent color themes.",
+    icon: Palette,
+  },
   {
     href: "/dashboard/settings/profile",
     title: "Profile",

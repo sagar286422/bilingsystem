@@ -7,6 +7,7 @@ import {
   Landmark,
   LayoutDashboard,
   Link as LinkIcon,
+  Palette,
   Plug,
   Receipt,
   Repeat,
@@ -139,6 +140,12 @@ export const dashboardNavSections: DashboardNavSection[] = [
   {
     title: "Account",
     items: [
+      {
+        href: "/dashboard/settings/theme",
+        label: "Appearance",
+        icon: Palette,
+        description: "Color theme and light / dark mode",
+      },
       {
         href: "/dashboard/settings/profile",
         label: "Profile",

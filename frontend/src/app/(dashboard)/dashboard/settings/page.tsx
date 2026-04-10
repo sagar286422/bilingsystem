@@ -16,9 +16,9 @@ export default function SettingsHubPage() {
       />
       <div className="space-y-6 px-4 py-8 sm:px-8">
         <p className="max-w-2xl text-sm text-muted-foreground">
-          Notifications, locale, and billing defaults will live on this page in a
-          later iteration — use the cards below for profile and workspace
-          structure.
+          Open <strong className="text-foreground">Appearance</strong> for light
+          / dark mode and accent color themes. Other preferences will collect
+          here later — use the cards below for profile and workspace structure.
         </p>
         <SettingsHubCards />
       </div>
