@@ -3,17 +3,18 @@
 import { useLayoutEffect } from "react";
 
 import {
-  applyPaletteToDocument,
+  applyAppearanceToDocument,
   useThemePaletteStore,
 } from "@/stores/theme-palette-store";
 
-/** Keeps `<html data-palette>` in sync with persisted accent preset. */
+/** Keeps `<html data-palette>` and optional custom color CSS variables in sync. */
 export function ThemePaletteSync() {
   const palette = useThemePaletteStore((s) => s.palette);
+  const customColors = useThemePaletteStore((s) => s.customColors);
 
   useLayoutEffect(() => {
-    applyPaletteToDocument(palette);
-  }, [palette]);
+    applyAppearanceToDocument({ palette, customColors });
+  }, [palette, customColors]);
 
   return null;
 }
