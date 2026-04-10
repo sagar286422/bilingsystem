@@ -7,7 +7,8 @@ import {
   type CustomColorKey,
   type CustomColors,
 } from "@/lib/theme-custom-colors";
-import type { ThemePaletteId } from "@/lib/theme-palettes";
+import { generateShuffledAppearance } from "@/lib/theme-shuffle";
+import { THEME_PALETTE_IDS, type ThemePaletteId } from "@/lib/theme-palettes";
 
 type ThemeAppearanceState = {
   palette: ThemePaletteId;
@@ -15,6 +16,7 @@ type ThemeAppearanceState = {
   setPalette: (palette: ThemePaletteId) => void;
   setCustomColor: (key: CustomColorKey, value: string | null) => void;
   resetCustomColors: () => void;
+  shuffleAppearance: (mode: "light" | "dark") => void;
 };
 
 export const useThemePaletteStore = create<ThemeAppearanceState>()(
@@ -34,6 +36,14 @@ export const useThemePaletteStore = create<ThemeAppearanceState>()(
           return { customColors: next };
         }),
       resetCustomColors: () => set({ customColors: {} }),
+      shuffleAppearance: (mode) =>
+        set({
+          customColors: generateShuffledAppearance(mode),
+          palette:
+            THEME_PALETTE_IDS[
+              Math.floor(Math.random() * THEME_PALETTE_IDS.length)
+            ]!,
+        }),
     }),
     {
       name: "billing-palette",

@@ -1,6 +1,6 @@
 "use client";
 
-import { Check, Moon, RotateCcw, Sun } from "lucide-react";
+import { Check, Moon, RotateCcw, Shuffle, Sun } from "lucide-react";
 import { useTheme } from "next-themes";
 import { useEffect, useMemo, useState } from "react";
 
@@ -35,6 +35,7 @@ export function ThemeSettingsPanel() {
   const customColors = useThemePaletteStore((s) => s.customColors);
   const setCustomColor = useThemePaletteStore((s) => s.setCustomColor);
   const resetCustomColors = useThemePaletteStore((s) => s.resetCustomColors);
+  const shuffleAppearance = useThemePaletteStore((s) => s.shuffleAppearance);
   const { resolvedTheme, setTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
 
@@ -61,33 +62,49 @@ export function ThemeSettingsPanel() {
         <CardHeader>
           <CardTitle className="text-lg">Appearance mode</CardTitle>
           <CardDescription>
-            Light or dark surfaces. Accent colors below apply in both modes.
+            Light or dark surfaces.{" "}
+            <span className="font-medium text-foreground">Shuffle</span> picks
+            random colors for the whole UI (saved locally) and a random accent
+            preset.
           </CardDescription>
         </CardHeader>
-        <CardContent className="flex flex-wrap gap-2">
+        <CardContent className="flex flex-wrap items-center justify-between gap-3">
           {!mounted ? (
             <p className="text-sm text-muted-foreground">Loading…</p>
           ) : (
             <>
+              <div className="flex flex-wrap gap-2">
+                <Button
+                  type="button"
+                  variant={!isDark ? "default" : "outline"}
+                  size="sm"
+                  className="gap-2"
+                  onClick={() => setTheme("light")}
+                >
+                  <Sun className="size-4" aria-hidden />
+                  Light
+                </Button>
+                <Button
+                  type="button"
+                  variant={isDark ? "default" : "outline"}
+                  size="sm"
+                  className="gap-2"
+                  onClick={() => setTheme("dark")}
+                >
+                  <Moon className="size-4" aria-hidden />
+                  Dark
+                </Button>
+              </div>
               <Button
                 type="button"
-                variant={!isDark ? "default" : "outline"}
+                variant="secondary"
                 size="sm"
                 className="gap-2"
-                onClick={() => setTheme("light")}
+                onClick={() => shuffleAppearance(isDark ? "dark" : "light")}
+                title="Random background, text, borders, accents, and a preset"
               >
-                <Sun className="size-4" aria-hidden />
-                Light
-              </Button>
-              <Button
-                type="button"
-                variant={isDark ? "default" : "outline"}
-                size="sm"
-                className="gap-2"
-                onClick={() => setTheme("dark")}
-              >
-                <Moon className="size-4" aria-hidden />
-                Dark
+                <Shuffle className="size-4" aria-hidden />
+                Shuffle
               </Button>
             </>
           )}
